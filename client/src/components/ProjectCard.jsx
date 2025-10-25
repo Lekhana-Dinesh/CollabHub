@@ -15,22 +15,26 @@ export const ProjectCard = ({ project }) => {
     COMPLETED: "bg-gray-100 text-gray-800",
   };
 
-  const fallbackCover =
-    "https://images.unsplash.com/photo-1521737604893-d14cc237f11d?w=800&q=80";
+  const fallbackCover = "https://images.unsplash.com/photo-1521737604893-d14cc237f11d?w=800&q=80";
+  
+  // Use coverUrl if it exists and is not empty, otherwise use fallback
+  const imageUrl = (project.coverUrl && project.coverUrl.trim() !== "") ? project.coverUrl : fallbackCover;
+
   return (
     <Link
       to={`/projects/${project.id}`}
       className="block bg-card rounded-lg border shadow-sm hover:shadow-md transition p-4"
     >
       {/* Cover image */}
-      
-        
-        <img
-          src={project.coverUrl || fallbackCover}
-          alt={project.title}
-          className="w-full h-40 object-cover rounded-md mb-3"
-        />
-      
+      <img
+        src={imageUrl}
+        alt={project.title}
+        className="w-full h-40 object-cover rounded-md mb-3"
+        onError={(e) => {
+          // If image fails to load, use fallback
+          e.target.src = fallbackCover;
+        }}
+      />
 
       {/* Title and status */}
       <div className="flex items-start justify-between mb-2">

@@ -14,9 +14,9 @@ import {
 const router = express.Router();
 
 // list & create
-router.get("/", getProjects);
-router.post("/", auth, uploadProjectCover.single('coverImage'), createProject);
 
+router.post("/", auth, uploadProjectCover.single('coverImage'), createProject);
+router.get("/", getProjects);
 
 // single project
 router.get("/:id", getProjectById);

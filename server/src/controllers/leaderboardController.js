@@ -55,9 +55,7 @@ export const getTopProjects = async (req, res) => {
       .populate("owner") // adjust: see below, owner vs leader
       .lean();
 
-    // NOTE: if your Project model uses `leader` instead of `owner`,
-    // change `.populate("owner")` above to `.populate("leader")`
-    // and also map leader → owner in safeProject.
+    
 
     // sort by tasksDone desc
     const sorted = projects

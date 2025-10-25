@@ -18,7 +18,7 @@ app.use(express.json({ limit: "15mb" }));
 app.use(express.urlencoded({ extended: true, limit: "15mb" }));
 app.use(cookieParser());
 
-// FIXED CORS - Allow both dev ports
+// CORS
 app.use(
   cors({
     origin: ["http://localhost:8080", "http://localhost:5173", "http://localhost:3000"],

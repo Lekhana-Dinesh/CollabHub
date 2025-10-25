@@ -4,7 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import { toast } from "sonner";
 import { ChevronRight, ChevronLeft } from "lucide-react";
 
-// Onboarding wizard (3 steps)
+// Onboarding 
 export const Onboarding = () => {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);

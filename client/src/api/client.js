@@ -1,24 +1,29 @@
-
-
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000";
 
 // helper: build headers with JWT
 const authHeaders = () => {
   const token = localStorage.getItem("token");
   return token
-    ? { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }
-    : { "Content-Type": "application/json" };
+    ? { Authorization: `Bearer ${token}` }
+    : {};
 };
 
 // Generic fetch wrapper with auth + error handling
 const fetchWithAuth = async (endpoint, options = {}) => {
+  const headers = {
+    ...authHeaders(),
+    ...(options.headers || {})
+  };
+
+  
+  if (!(options.body instanceof FormData) && !headers['Content-Type']) {
+    headers['Content-Type'] = 'application/json';
+  }
+
   const res = await fetch(`${BASE_URL}${endpoint}`, {
     ...options,
-    headers: {
-      ...authHeaders(),
-      ...(options.headers || {})
-    },
-    credentials: "include", // just in case you later move auth to cookies
+    headers,
+    credentials: "include",
   });
 
   // handle 204 No Content
@@ -39,8 +44,6 @@ const fetchWithAuth = async (endpoint, options = {}) => {
   return data;
 };
 
-
-
 const auth = {
   signup: async (email, password, name) => {
     const body = { name, email, password };
@@ -48,9 +51,9 @@ const auth = {
     const data = await fetchWithAuth("/api/auth/signup", {
       method: "POST",
       body: JSON.stringify(body),
+      headers: { "Content-Type": "application/json" }
     });
 
-    // expecting { user, token }
     if (data && data.token) {
       localStorage.setItem("token", data.token);
     }
@@ -64,9 +67,9 @@ const auth = {
     const data = await fetchWithAuth("/api/auth/login", {
       method: "POST",
       body: JSON.stringify(body),
+      headers: { "Content-Type": "application/json" }
     });
 
-    // expecting { user, token }
     if (data && data.token) {
       localStorage.setItem("token", data.token);
     }
@@ -75,8 +78,6 @@ const auth = {
   },
 
   logout: async () => {
-    // optional endpoint on backend; if you didn't build it,
-    // just clear local token.
     try {
       await fetchWithAuth("/api/auth/logout", {
         method: "POST",
@@ -90,7 +91,6 @@ const auth = {
   },
 };
 
-
 const users = {
   getMe: async () => {
     const data = await fetchWithAuth("/api/users/me", {
@@ -103,6 +103,7 @@ const users = {
     const data = await fetchWithAuth("/api/users/me", {
       method: "PUT",
       body: JSON.stringify(updates),
+      headers: { "Content-Type": "application/json" }
     });
     return data;
   },
@@ -115,12 +116,8 @@ const users = {
   },
 };
 
-
-
 const projects = {
   list: async (filters) => {
-    // We can send filters later as query params to backend if you add that.
-    // For now just GET all.
     const data = await fetchWithAuth("/api/projects", {
       method: "GET",
     });
@@ -135,25 +132,32 @@ const projects = {
   },
 
   create: async (formData) => {
-   
-    const data = await fetchWithAuth("/api/projects", {
+    // formData can be FormData object OR plain object
+    const body = formData instanceof FormData ? formData : JSON.stringify(formData);
+    
+    const options = {
       method: "POST",
-      body: JSON.stringify(formData),
-    });
+      body: body,
+    };
+
+    // Only add Content-Type header for JSON, never for FormData
+    if (!(formData instanceof FormData)) {
+      options.headers = { "Content-Type": "application/json" };
+    }
+
+    const data = await fetchWithAuth("/api/projects", options);
     return data;
   },
 
-  // ask to join / contribute
   requestJoin: async (projectId, message) => {
-
     const data = await fetchWithAuth(`/api/projects/${projectId}/join`, {
       method: "POST",
       body: JSON.stringify({ message }),
+      headers: { "Content-Type": "application/json" }
     });
     return data;
   },
 
-  // accept join request (leader only)
   acceptRequest: async (projectId, requestId) => {
     const data = await fetchWithAuth(
       `/api/projects/${projectId}/requests/${requestId}/accept`,
@@ -175,8 +179,6 @@ const projects = {
   },
 };
 
-
-
 const tasks = {
   getByProject: async (projectId) => {
     const data = await fetchWithAuth(
@@ -187,36 +189,29 @@ const tasks = {
   },
 
   create: async (taskData) => {
-    // taskData from KanbanBoard:
-    // { projectId, title, description }
-  
-  
     const data = await fetchWithAuth("/api/tasks", {
       method: "POST",
       body: JSON.stringify(taskData),
+      headers: { "Content-Type": "application/json" }
     });
     return data;
   },
 
   update: async (id, updates) => {
-    // updates can be { status: "IN_PROGRESS" } etc.
     const data = await fetchWithAuth(`/api/tasks/${id}`, {
       method: "PATCH",
       body: JSON.stringify(updates),
+      headers: { "Content-Type": "application/json" }
     });
     return data;
   },
 };
 
-
-let tempChat = {}; // { [projectId]: [ {id,user,text,createdAt}, ... ] }
-let tempUserCache = {}; // we'll fill current user when login() happens
+let tempChat = {};
+let tempUserCache = {};
 
 const chat = {
   getMessages: async (projectId) => {
-    // try backend route FIRST if you ever add it:
-    // GET /api/projects/:projectId/chat
-    // if 404, fallback
     try {
       const data = await fetchWithAuth(
         `/api/projects/${projectId}/chat`,
@@ -224,24 +219,22 @@ const chat = {
       );
       return data;
     } catch (err) {
-
       return tempChat[projectId] || [];
     }
   },
 
   sendMessage: async (projectId, text) => {
-
     try {
       const data = await fetchWithAuth(
         `/api/projects/${projectId}/chat`,
         {
           method: "POST",
           body: JSON.stringify({ text }),
+          headers: { "Content-Type": "application/json" }
         }
       );
       return data;
     } catch (err) {
-      // fallback
       const me = tempUserCache.me || null;
       const message = {
         id: "c" + Date.now(),
@@ -257,7 +250,6 @@ const chat = {
   },
 };
 
-// leaderboard fallback
 const leaderboard = {
   getProjects: async () => {
     try {
@@ -266,7 +258,6 @@ const leaderboard = {
       });
       return data;
     } catch (err) {
-      // fallback: we’ll just call /api/projects and rank by tasksDone
       const projectsData = await projects.list();
       const sorted = [...projectsData].sort(
         (a, b) => b.metrics.tasksDone - a.metrics.tasksDone
@@ -286,8 +277,6 @@ const leaderboard = {
       });
       return data;
     } catch (err) {
-      
-      // We'll try to fetch from /api/users/me and /api/users/:id from projects.
       const projList = await projects.list();
       const seen = {};
       projList.forEach((proj) => {
@@ -309,7 +298,6 @@ const leaderboard = {
   },
 };
 
-// match fallback
 const match = {
   getSuggested: async () => {
     try {
@@ -318,7 +306,6 @@ const match = {
       });
       return data;
     } catch (err) {
-      
       let me;
       try {
         me = await users.getMe();
@@ -335,7 +322,6 @@ const match = {
         .map((p) => {
           let score = 0;
 
-          // skill overlap
           const skillOverlap = p.techStack.filter((tech) =>
             (me.skills || []).some((s) =>
               s.toLowerCase().includes(tech.toLowerCase())
@@ -343,7 +329,6 @@ const match = {
           ).length;
           score += skillOverlap * 2;
 
-          // tags vs preferences
           const categoryOverlap = p.tags.filter((tag) =>
             (me.preferences?.categories || []).some((c) =>
               tag.toLowerCase().includes(c.toLowerCase())
@@ -362,7 +347,6 @@ const match = {
   },
 };
 
-// export the full api surface
 export const api = {
   auth,
   users,

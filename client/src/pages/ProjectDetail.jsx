@@ -15,7 +15,6 @@ import { Bookmark, UserPlus, GitPullRequest } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate } from 'react-router-dom';
 
-
 export const ProjectDetail = () => {
   const navigate = useNavigate();
   const { id } = useParams();
@@ -36,7 +35,6 @@ export const ProjectDetail = () => {
       const bookmarks = JSON.parse(localStorage.getItem("bookmarks") || "[]");
       setIsBookmarked(bookmarks.includes(id));
     }
-
   }, [id]);
 
   const loadProject = async (projectId) => {
@@ -98,38 +96,36 @@ export const ProjectDetail = () => {
   };
 
   const handleDeleteProject = async () => {
-  if (!project) return;
+    if (!project) return;
 
-  const confirmed = window.confirm(
-    "Are you sure you want to delete this project? This cannot be undone."
-  );
-  if (!confirmed) return;
+    const confirmed = window.confirm(
+      "Are you sure you want to delete this project? This cannot be undone."
+    );
+    if (!confirmed) return;
 
-  try {
-    const res = await fetch(`http://localhost:4000/api/projects/${project.id}`, {
-      method: "DELETE",
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
-      },
-      credentials: "include",
-    });
+    try {
+      const res = await fetch(`http://localhost:4000/api/projects/${project.id}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
+        },
+        credentials: "include",
+      });
 
-    if (!res.ok) {
-      const errData = await res.json().catch(() => ({}));
-      console.error("Delete failed:", res.status, errData);
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        console.error("Delete failed:", res.status, errData);
+        toast.error("Failed to delete project");
+        return;
+      }
 
-      return;
+      toast.success("Project deleted successfully");
+      navigate("/");
+    } catch (err) {
+      console.error("Failed to delete project:", err);
+      toast.error("Failed to delete project");
     }
-
-    navigate("/");
-  } catch (err) {
-    console.error("Failed to delete project:", err);
-    // toast.error("Failed to delete project");
-  }
-};
-
-
-
+  };
 
   const handleSendMessage = async () => {
     if (!newMessage.trim() || !project) return;
@@ -154,13 +150,25 @@ export const ProjectDetail = () => {
   const hasAlreadyRequested =
     user && project.joinRequests.some((req) => req.user.id === user.id && req.status === "PENDING");
 
+  // Handle cover image with fallback
+  const fallbackCover = "https://images.unsplash.com/photo-1521737604893-d14cc237f11d?w=800&q=80";
+  const coverImageUrl = (project.coverUrl && project.coverUrl.trim() !== "") 
+    ? project.coverUrl 
+    : fallbackCover;
+
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
       <div className="container mx-auto px-4 py-8">
-        {project.coverUrl && (
-          <img src={project.coverUrl} alt={project.title} className="w-full h-64 object-cover rounded-lg mb-6" />
-        )}
+        {/* Cover Image - Always show with fallback */}
+        <img 
+          src={coverImageUrl} 
+          alt={project.title} 
+          className="w-full h-64 object-cover rounded-lg mb-6"
+          onError={(e) => {
+            e.target.src = fallbackCover;
+          }}
+        />
 
         <div className="flex justify-between items-start mb-6">
           <div className="flex-1">
@@ -171,7 +179,15 @@ export const ProjectDetail = () => {
             <Button variant="outline" onClick={toggleBookmark}>
               <Bookmark size={18} className={isBookmarked ? "fill-current" : ""} />
             </Button>
-            {isOwner && (<Button variant="destructive" onClick={handleDeleteProject} className="bg-red-600 text-white hover:bg-red-700"> Delete Project</Button>)}
+            {isOwner && (
+              <Button 
+                variant="destructive" 
+                onClick={handleDeleteProject} 
+                className="bg-red-600 text-white hover:bg-red-700"
+              >
+                Delete Project
+              </Button>
+            )}
             {!isTeamMember && !isOwner && (
               <>
                 {project.needsTeamMembers && (
@@ -346,7 +362,11 @@ export const ProjectDetail = () => {
                 <div className="flex-1 overflow-y-auto space-y-3 mb-4">
                   {messages.map((msg) => (
                     <div key={msg.id} className="flex gap-2">
-                      <img src={msg.user.avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${msg.user.name}`} className="w-8 h-8 rounded-full" />
+                      <img 
+                        src={msg.user.avatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${msg.user.name}`} 
+                        alt={msg.user.name}
+                        className="w-8 h-8 rounded-full" 
+                      />
                       <div>
                         <p className="text-sm font-medium">{msg.user.name}</p>
                         <p className="text-sm">{msg.text}</p>
@@ -360,10 +380,15 @@ export const ProjectDetail = () => {
                     onChange={(e) => setNewMessage(e.target.value)}
                     className="flex-1 px-3 py-2 border rounded"
                     placeholder="Type a message..."
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter') {
+                        handleSendMessage();
+                      }
+                    }}
                   />
                   <button
                     onClick={handleSendMessage}
-                    className="px-4 py-2 bg-primary text-primary-foreground rounded"
+                    className="px-4 py-2 bg-primary text-primary-foreground rounded hover:bg-primary/90 transition"
                   >
                     Send
                   </button>

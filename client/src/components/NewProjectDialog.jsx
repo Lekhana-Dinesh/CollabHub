@@ -19,58 +19,80 @@ export const NewProjectDialog = ({ onProjectCreated }) => {
   const [needsTeamMembers, setNeedsTeamMembers] = useState(true);
   const [needsContributors, setNeedsContributors] = useState(false);
   const [contributionRequirements, setContributionRequirements] = useState("");
-  const [coverImage, setCoverImage] = useState("");
+  const [coverImageFile, setCoverImageFile] = useState(null);
+  const [coverImagePreview, setCoverImagePreview] = useState("");
 
-  // Find the handleSubmit function and update it:
+  const handleSubmit = async (e) => {
+    e.preventDefault();
 
-const handleSubmit = async (e) => {
-  e.preventDefault();
+    try {
+      const rolesArray = rolesNeeded
+        .split(",")
+        .map((r) => r.trim())
+        .filter((r) => r);
+      const skillsArray = skillsRequired
+        .split(",")
+        .map((s) => s.trim())
+        .filter((s) => s);
 
-  try {
-    const rolesArray = rolesNeeded
-      .split(",")
-      .map((r) => r.trim())
-      .filter((r) => r);
-    const skillsArray = skillsRequired
-      .split(",")
-      .map((s) => s.trim())
-      .filter((s) => s);
+      // Create FormData instead of JSON
+      const formData = new FormData();
+      formData.append("title", title);
+      formData.append("description", description);
+      formData.append("rolesNeeded", JSON.stringify(rolesArray.map((role) => ({ role, count: 1 }))));
+      formData.append("teamMembersRequired", parseInt(teamMembersRequired) || 1);
+      formData.append("skillsRequired", JSON.stringify(skillsArray));
+      formData.append("needsTeamMembers", needsTeamMembers);
+      formData.append("needsContributors", needsContributors);
+      formData.append("techStack", JSON.stringify(skillsArray));
+      formData.append("tags", JSON.stringify([]));
+      
+      if (needsContributors && contributionRequirements) {
+        formData.append("contributionRequirements", contributionRequirements);
+      }
 
-    // Send base64 to backend - it will handle Cloudinary upload
-    await api.projects.create({
-      title,
-      description,
-      rolesNeeded: rolesArray.map((role) => ({ role, count: 1 })),
-      teamMembersRequired: parseInt(teamMembersRequired) || 1,
-      skillsRequired: skillsArray,
-      needsTeamMembers,
-      needsContributors,
-      contributionRequirements: needsContributors ? contributionRequirements : undefined,
-      techStack: skillsArray,
-      tags: [],
-      coverUrl: coverImage || undefined, // Backend will upload to Cloudinary
-    });
+      // Append the actual file
+      if (coverImageFile) {
+        formData.append("coverImage", coverImageFile);
+      }
 
-    toast.success("Project created successfully!");
-    setOpen(false);
+      await api.projects.create(formData);
 
-    // Reset form
-    setTitle("");
-    setDescription("");
-    setRolesNeeded("");
-    setTeamMembersRequired("");
-    setSkillsRequired("");
-    setNeedsTeamMembers(true);
-    setNeedsContributors(false);
-    setContributionRequirements("");
-    setCoverImage("");
+      toast.success("Project created successfully!");
+      setOpen(false);
 
-    if (onProjectCreated) onProjectCreated();
-  } catch (error) {
-    console.error("Create project error:", error);
-    toast.error("Failed to create project");
-  }
-};
+      // Reset form
+      setTitle("");
+      setDescription("");
+      setRolesNeeded("");
+      setTeamMembersRequired("");
+      setSkillsRequired("");
+      setNeedsTeamMembers(true);
+      setNeedsContributors(false);
+      setContributionRequirements("");
+      setCoverImageFile(null);
+      setCoverImagePreview("");
+
+      if (onProjectCreated) onProjectCreated();
+    } catch (error) {
+      console.error("Create project error:", error);
+      toast.error("Failed to create project");
+    }
+  };
+
+  const handleFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setCoverImageFile(file);
+      
+      // Create preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setCoverImagePreview(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -109,18 +131,11 @@ const handleSubmit = async (e) => {
               id="coverImage"
               type="file"
               accept="image/*"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) {
-                  const reader = new FileReader();
-                  reader.onloadend = () => setCoverImage(reader.result || "");
-                  reader.readAsDataURL(file);
-                }
-              }}
+              onChange={handleFileChange}
             />
-            {coverImage && (
+            {coverImagePreview && (
               <div className="mt-2">
-                <img src={coverImage} alt="Cover preview" className="w-full h-32 object-cover rounded" />
+                <img src={coverImagePreview} alt="Cover preview" className="w-full h-32 object-cover rounded" />
               </div>
             )}
           </div>

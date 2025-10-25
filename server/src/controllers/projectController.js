@@ -3,7 +3,7 @@ import User from "../models/User.js";
 import Task from "../models/Task.js";
 import cloudinary from "../config/cloudinary.js";
 
-// Helper functions (keep your existing ones)
+// Helper functions
 function safeUser(userDoc) {
   if (!userDoc) return null;
   return {
@@ -29,7 +29,7 @@ function formatProject(projectDoc) {
     owner: safeUser(p.owner),
     title: p.title,
     description: p.description,
-    coverUrl: p.coverUrl || "", // Now it's a Cloudinary URL
+    coverUrl: p.coverUrl || "",
     tags: p.tags || [],
     techStack: p.techStack || [],
     status: p.status,
@@ -56,9 +56,12 @@ function formatProject(projectDoc) {
   };
 }
 
-// CREATE PROJECT - Now with Cloudinary
+// CREATE PROJECT - Fixed to handle FormData properly
 export const createProject = async (req, res) => {
   try {
+    console.log(" Received request body:", req.body);
+    console.log(" Received file:", req.file);
+    
     if (!req.user || !req.user.id) {
       return res.status(401).json({ message: "Not authenticated" });
     }
@@ -69,32 +72,63 @@ export const createProject = async (req, res) => {
       return res.status(400).json({ message: "Owner user not found" });
     }
 
-    // Handle cover image
+    // Handle cover image from multer
     let coverUrl = "";
     if (req.file) {
       // Image was uploaded via multer → already on Cloudinary
-      coverUrl = req.file.path; // Cloudinary URL
-    } else if (req.body.coverUrl) {
-      // Base64 string sent from frontend
-      try {
-        const uploadResult = await cloudinary.uploader.upload(req.body.coverUrl, {
-          folder: 'collabhub/projects',
-          transformation: [{ width: 1200, height: 630, crop: 'limit' }],
-        });
-        coverUrl = uploadResult.secure_url;
-      } catch (uploadErr) {
-        console.error("Cloudinary upload error:", uploadErr);
-        // Continue without image rather than failing
-      }
+      coverUrl = req.file.path; // This is the Cloudinary URL
+      console.log(" Image uploaded to Cloudinary:", coverUrl);
+    } else {
+      console.log("x No file uploaded");
     }
+
+    // Parse JSON fields from FormData
+    let rolesNeeded = [];
+    let skillsRequired = [];
+    let techStack = [];
+    let tags = [];
+
+    try {
+      if (req.body.rolesNeeded) {
+        rolesNeeded = JSON.parse(req.body.rolesNeeded);
+        console.log(" Parsed rolesNeeded:", rolesNeeded);
+      }
+      if (req.body.skillsRequired) {
+        skillsRequired = JSON.parse(req.body.skillsRequired);
+        console.log(" Parsed skillsRequired:", skillsRequired);
+      }
+      if (req.body.techStack) {
+        techStack = JSON.parse(req.body.techStack);
+        console.log(" Parsed techStack:", techStack);
+      }
+      if (req.body.tags) {
+        tags = JSON.parse(req.body.tags);
+        console.log(" Parsed tags:", tags);
+      }
+    } catch (parseErr) {
+      console.error("x Error parsing JSON fields:", parseErr);
+      return res.status(400).json({ message: "Invalid JSON in form fields", error: parseErr.message });
+    }
+
+    // Convert string booleans to actual booleans
+    const needsTeamMembers = req.body.needsTeamMembers === 'true' || req.body.needsTeamMembers === true;
+    const needsContributors = req.body.needsContributors === 'true' || req.body.needsContributors === true;
+
+    console.log(" Creating project with data:", {
+      title: req.body.title,
+      description: req.body.description,
+      coverUrl,
+      needsTeamMembers,
+      needsContributors
+    });
 
     const project = await Project.create({
       owner: ownerId,
       title: req.body.title,
       description: req.body.description,
       coverUrl: coverUrl, // Cloudinary URL
-      tags: req.body.tags || [],
-      techStack: req.body.techStack || [],
+      tags: tags,
+      techStack: techStack,
       status: "OPEN",
       team: [
         {
@@ -103,24 +137,21 @@ export const createProject = async (req, res) => {
           joinedAt: new Date(),
         },
       ],
-      rolesNeeded: req.body.rolesNeeded || [],
+      rolesNeeded: rolesNeeded,
       joinRequests: [],
-      teamMembersRequired: req.body.teamMembersRequired || 1,
-      skillsRequired: req.body.skillsRequired || [],
-      needsTeamMembers:
-        typeof req.body.needsTeamMembers === "boolean"
-          ? req.body.needsTeamMembers
-          : true,
-      needsContributors:
-        typeof req.body.needsContributors === "boolean"
-          ? req.body.needsContributors
-          : false,
+      teamMembersRequired: parseInt(req.body.teamMembersRequired) || 1,
+      skillsRequired: skillsRequired,
+      needsTeamMembers: needsTeamMembers,
+      needsContributors: needsContributors,
       contributionRequirements: req.body.contributionRequirements || "",
       metrics: {
         tasksTotal: 0,
         tasksDone: 0,
       },
     });
+
+    console.log(" Project created with ID:", project._id);
+    console.log(" Project coverUrl:", project.coverUrl);
 
     const populated = await Project.findById(project._id)
       .populate("owner")
@@ -129,19 +160,20 @@ export const createProject = async (req, res) => {
 
     res.status(201).json(formatProject(populated));
   } catch (err) {
-    console.error("createProject error:", err);
-    res.status(500).json({ message: "Server error" });
+    console.error("x createProject error:", err);
+    console.error("x Error stack:", err.stack);
+    res.status(500).json({ message: "Server error", error: err.message, stack: err.stack });
   }
 };
 
-// GET ALL PROJECTS - Fixed (no more base64 bloat)
+// GET ALL PROJECTS
 export const getProjects = async (req, res) => {
   try {
     const projects = await Project.find()
       .populate("owner")
       .populate("team.user")
       .populate("joinRequests.user")
-      .sort({ createdAt: -1 }) // Newest first
+      .sort({ createdAt: -1 })
       .lean();
 
     const safeProjects = projects.filter((p) => {
@@ -168,7 +200,7 @@ export const getProjects = async (req, res) => {
       },
       title: p.title,
       description: p.description,
-      coverUrl: p.coverUrl || "", // Cloudinary URL (fast!)
+      coverUrl: p.coverUrl || "",
       tags: p.tags || [],
       techStack: p.techStack || [],
       status: p.status,
@@ -381,7 +413,7 @@ export const rejectJoinRequest = async (req, res) => {
   }
 };
 
-// DELETE PROJECT - Fixed to work properly
+// DELETE PROJECT
 export const deleteProject = async (req, res) => {
   try {
     const { id } = req.params;
@@ -399,7 +431,6 @@ export const deleteProject = async (req, res) => {
     // Delete cover image from Cloudinary if it exists
     if (project.coverUrl) {
       try {
-        // Extract public_id from Cloudinary URL
         const publicId = project.coverUrl
           .split('/')
           .slice(-2)
@@ -407,9 +438,9 @@ export const deleteProject = async (req, res) => {
           .split('.')[0];
         
         await cloudinary.uploader.destroy(publicId);
+        console.log(" Deleted image from Cloudinary:", publicId);
       } catch (cloudinaryErr) {
         console.error("Failed to delete image from Cloudinary:", cloudinaryErr);
-        // Continue with project deletion even if image deletion fails
       }
     }
 
