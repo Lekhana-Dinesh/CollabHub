@@ -21,52 +21,56 @@ export const NewProjectDialog = ({ onProjectCreated }) => {
   const [contributionRequirements, setContributionRequirements] = useState("");
   const [coverImage, setCoverImage] = useState("");
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  // Find the handleSubmit function and update it:
 
-    try {
-      const rolesArray = rolesNeeded
-        .split(",")
-        .map((r) => r.trim())
-        .filter((r) => r);
-      const skillsArray = skillsRequired
-        .split(",")
-        .map((s) => s.trim())
-        .filter((s) => s);
+const handleSubmit = async (e) => {
+  e.preventDefault();
 
-      await api.projects.create({
-        title,
-        description,
-        rolesNeeded: rolesArray.map((role) => ({ role, count: 1 })),
-        teamMembersRequired: parseInt(teamMembersRequired) || 1,
-        skillsRequired: skillsArray,
-        needsTeamMembers,
-        needsContributors,
-        contributionRequirements: needsContributors ? contributionRequirements : undefined,
-        techStack: skillsArray,
-        tags: [],
-        coverUrl: coverImage || undefined,
-      });
+  try {
+    const rolesArray = rolesNeeded
+      .split(",")
+      .map((r) => r.trim())
+      .filter((r) => r);
+    const skillsArray = skillsRequired
+      .split(",")
+      .map((s) => s.trim())
+      .filter((s) => s);
 
-      toast.success("Project created successfully!");
-      setOpen(false);
+    // Send base64 to backend - it will handle Cloudinary upload
+    await api.projects.create({
+      title,
+      description,
+      rolesNeeded: rolesArray.map((role) => ({ role, count: 1 })),
+      teamMembersRequired: parseInt(teamMembersRequired) || 1,
+      skillsRequired: skillsArray,
+      needsTeamMembers,
+      needsContributors,
+      contributionRequirements: needsContributors ? contributionRequirements : undefined,
+      techStack: skillsArray,
+      tags: [],
+      coverUrl: coverImage || undefined, // Backend will upload to Cloudinary
+    });
 
-      // reset form
-      setTitle("");
-      setDescription("");
-      setRolesNeeded("");
-      setTeamMembersRequired("");
-      setSkillsRequired("");
-      setNeedsTeamMembers(true);
-      setNeedsContributors(false);
-      setContributionRequirements("");
-      setCoverImage("");
+    toast.success("Project created successfully!");
+    setOpen(false);
 
-      if (onProjectCreated) onProjectCreated();
-    } catch (error) {
-      toast.error("Failed to create project");
-    }
-  };
+    // Reset form
+    setTitle("");
+    setDescription("");
+    setRolesNeeded("");
+    setTeamMembersRequired("");
+    setSkillsRequired("");
+    setNeedsTeamMembers(true);
+    setNeedsContributors(false);
+    setContributionRequirements("");
+    setCoverImage("");
+
+    if (onProjectCreated) onProjectCreated();
+  } catch (error) {
+    console.error("Create project error:", error);
+    toast.error("Failed to create project");
+  }
+};
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>

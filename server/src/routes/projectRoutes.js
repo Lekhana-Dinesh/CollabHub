@@ -1,5 +1,6 @@
 import express from "express";
 import auth from "../middleware/authMiddleware.js";
+import { uploadProjectCover } from "../config/cloudinary.js";
 import {
   createProject,
   getProjects,
@@ -14,7 +15,8 @@ const router = express.Router();
 
 // list & create
 router.get("/", getProjects);
-router.post("/", auth, createProject);
+router.post("/", auth, uploadProjectCover.single('coverImage'), createProject);
+
 
 // single project
 router.get("/:id", getProjectById);
