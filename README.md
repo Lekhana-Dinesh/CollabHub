@@ -1,9 +1,7 @@
 # CollabHub 
-<div align="center">
 
 A Modern Platform for Project Collaboration and Team Building
 
-</div>
 
 ## Table of Contents
 
@@ -196,14 +194,17 @@ Backend API: http://localhost:4000
 
 
 Production Build
+
 Client:
-bashcd client
+-cd client
 npm run build
+
 This creates an optimized production build in the dist folder.
+
 Server:
-bashcd server
+cd server
 npm start
-```
+
 
 ---
 
@@ -293,7 +294,7 @@ collabhub/
 │
 └── README.md                        # This file
 
-
+```
 
 ## Deployment
 ### Live URLs
@@ -303,22 +304,26 @@ Backend API: https://collabhub-fdy7.onrender.com
 
 Deploying to Netlify (Frontend)
 
-Build the client
-
-bash   cd client
+1. **Build the client**
+```
+   cd client
    npm run build
 ```
 
 2. **Deploy to Netlify**
+```
    - Connect your GitHub repository to Netlify
    - Set build command: `npm run build`
    - Set publish directory: `dist`
    - Add environment variable: `VITE_API_BASE_URL=https://collabhub-fdy7.onrender.com`
+```
 
 3. **Configure redirects**
-   Create `client/public/_redirects`:
 ```
+   Create `client/public/_redirects`:
+
    /* /index.html 200
+```
 Deploying to Render (Backend)
 
 Create a new Web Service on Render
@@ -357,22 +362,25 @@ Add credentials to server .env file
 
 
 
-
-## License
-Distributed under the MIT License. See LICENSE file for more information.
-
 ## Contact
 Project Link: https://github.com/Lekhana-Dinesh/collabhub
 Live Demo: https://project-name-colabhub.netlify.app
 
 ## Acknowledgments
 
-React
-Express.js
-MongoDB
-Tailwind CSS
-shadcn/ui
-Cloudinary
-Render
-Netlify
+-React
+
+-Express.js
+
+-MongoDB
+
+-Tailwind CSS
+
+-shadcn/ui
+
+-Cloudinary
+
+-Render
+
+-Netlify
 
